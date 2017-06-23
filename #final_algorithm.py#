@@ -275,52 +275,6 @@ Returns:
 
     return filtered_url_traces
 
-def get_block_traces(traces, bucket_size):
-    print 'BUCKET SIZE ' + str(bucket_size)
-    print len(traces)
-    pre_traces = []
-    final_traces = []
-    for timst in traces:
-        timst = timst.replace(microsecond=0)
-        pre_traces.append(timst)
-
-    pre_traces = list(set(pre_traces))
-    pre_traces = sorted(pre_traces)
-    #print len(pre_traces)
-    #for elem in pre_traces:
-        #print elem
-    first_timst = pre_traces[0]
-    first_day = first_timst.replace(hour=00, minute=00, second=00, microsecond=0)
-    last_timst = pre_traces[len(pre_traces)-1]
-    last_day = last_timst.replace(hour=23, minute=59, second=59, microsecond=0)
-
-    current_bucket_beg = first_day
-    current_bucket_end = current_bucket_beg + datetime.timedelta(0,bucket_size)
-
-    daily_traces = get_daily_traces(pre_traces, current_bucket_beg)
-    current_date = current_bucket_beg.date()
-    previous_date = current_bucket_beg.date()
-
-    while current_bucket_end <= last_day + datetime.timedelta(0,1):
-        if current_date != previous_date:
-            previous_date = current_date
-            print current_date
-            daily_traces = get_daily_traces(pre_traces, current_bucket_beg)
-
-        trace_in = trace_in_bucket(daily_traces, current_bucket_beg, current_bucket_end)
-
-        if trace_in:
-            timst_insert = current_bucket_beg
-            while timst_insert <= current_bucket_end:
-                final_traces.append(timst_insert)
-                timst_insert = timst_insert + datetime.timedelta(0,1)
-
-        current_bucket_beg = current_bucket_end + datetime.timedelta(0,1)
-        current_bucket_end = current_bucket_beg + datetime.timedelta(0,bucket_size)
-        current_date = current_bucket_beg.date()
-
-    return final_traces
-
 
 def get_daily_traces(traces, bucket_beg):
     daily_list = []
