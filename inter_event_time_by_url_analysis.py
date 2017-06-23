@@ -1,36 +1,31 @@
-import numpy as np
-import scipy as sci
-import pandas as pd
-
-import numpy as np
-import seaborn as sns
+import datautils
 import matplotlib.pyplot as plt
-from matplotlib import dates
+import numpy as np
+import pandas as pd
+import scipy as sci
+import seaborn as sns
 
-from bokeh.plotting import figure, show, output_notebook
 from bokeh.charts import *
-
+from bokeh.plotting import figure, show, output_notebook
 from collections import defaultdict
 from datetime import datetime, timedelta
+from matplotlib import dates
 
 from model.Base import Base
-from model.User import User
 from model.Device import Device
-from model.HttpReq import HttpReq
 from model.DnsReq import DnsReq
+from model.HttpReq import HttpReq
+from model.User import User
 from model.user_devices import user_devices;
 
 from blacklist import create_blacklist_dict
 from blacklist import is_in_blacklist
-
 from inter_event_time_theoretical_count import get_interval_list
 from inter_event_time_theoretical_count import get_free_spikes_traces
 
 from sqlalchemy import create_engine, text, func
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import NullPool
-
-import datautils
 
 from IPython.display import display
 
