@@ -1,18 +1,21 @@
 from blacklist import create_blacklist_dict
 from blacklist import is_in_blacklist
 from collections import defaultdict
-from inter_event_time_by_url_analysis import filter_spikes
 from IPython.display import display
 from matplotlib import dates
+
 from model.Base import Base
 from model.User import User
 from model.Device import Device
 from model.HttpReq import HttpReq
 from model.DnsReq import DnsReq
 from model.user_devices import user_devices;
+
 from sqlalchemy import create_engine, text, func
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import NullPool
+
+from inter_event_time_by_url_analysis import filter_spike
 from Traces import Trace
 
 import datautils
@@ -42,14 +45,16 @@ Parameters:
 
     file_type = get_file_type(f_blacklist, f_seconds, f_spikes)
 
-    #bucket_list = [1, 5, 10]
-    bucket_list = [30, 60]
-    #traces_file_1 = open('traces_bucket_1_%s'%(file_type), 'w')
-    #traces_file_5 = open('traces_bucket_5_%s'%(file_type), 'w')
-    #traces_file_10 = open('traces_bucket_10_%s'%(file_type), 'w')
+    #sliding windows for creating packets intervals.
+    bucket_list = [1, 5, 10, 30, 60]
 
+    traces_file_1 = open('traces_bucket_1_%s'%(file_type), 'w')
+    traces_file_5 = open('traces_bucket_5_%s'%(file_type), 'w')
+    traces_file_10 = open('traces_bucket_10_%s'%(file_type), 'w')
     traces_file_30 = open('traces_bucket_30_%s'%(file_type), 'w')
     traces_file_60 = open('traces_bucket_60_%s'%(file_type), 'w')
+
+    block_length = 60*5
 
     for user in users:
         devids = []
@@ -65,6 +70,7 @@ Parameters:
             user_id = ses.execute(text(sql_userid).bindparams(d_id = elem_id)).fetchone()
             idt = user_id[0]
 
+            #gets only users that have ground truth data.
             if idt != 'bowen.laptop' and idt != 'bridgeman.laptop2' and idt != 'bridgeman.stuartlaptop' and idt != 'chrismaley.loungepc' and idt != 'chrismaley.mainpc' and idt != 'clifford.mainlaptop' and idt != 'gluch.laptop' and idt != 'kemianny.mainlaptop' and idt != 'neenagupta.workpc':
                 continue
 
@@ -72,8 +78,8 @@ Parameters:
 
             http_traces_list, dns_traces_list = get_test_data(elem_id)
             
-            filtered_http_traces = filter_traces(5*60, http_traces_list, blacklist, f_blacklist, f_seconds, f_spikes)
-            filtered_dns_traces = filter_traces(5*60, dns_traces_list, blacklist, f_blacklist, f_seconds, f_spikes)
+            filtered_http_traces = filter_traces(block_length, http_traces_list, blacklist, f_blacklist, f_seconds, f_spikes)
+            filtered_dns_traces = filter_traces(block_length, dns_traces_list, blacklist, f_blacklist, f_seconds, f_spikes)
 
             for key, timsts in filtered_http_traces.iteritems():
                 for timst in timsts:
@@ -114,17 +120,50 @@ Parameters:
                     elif bucket == 60:
                         traces_file_60.write('\n' +str(timst))
 
-    #traces_file_1.close()
-    #traces_file_5.close()
-    #traces_file_10.close()
+    traces_file_1.close()
+    traces_file_5.close()
+    traces_file_10.close()
     traces_file_30.close()
     traces_file_60.close()
     
     return filtered_traces_user_dict
 
 
-def filter_traces(block_length, traces_list, blacklist, filter_blist, filter_iat, filter_spike):
+def get_test_data(device_id):
+"""
+Gets dns and http requests packets from the database.
+Parameters:
+- device_id(int): unique device identifier.
+Returns:
+- http_traces_list (list of Traces): contains http request packets for a device.
+- dns_traces_list (list of Traces): contains dns request packets for a device.
+"""
+    sql_http = """SELECT req_url_host, ts, lag(ts) OVER (ORDER BY ts) FROM httpreqs2 \
+        WHERE devid =:d_id AND matches_urlblacklist = 'f' and source = 'hostview'"""
 
+    sql_dns = """SELECT query, ts, lag(ts) OVER (ORDER BY ts) FROM dnsreqs \
+        WHERE devid =:d_id AND matches_blacklist = 'f'"""
+
+    http_traces_list = []
+    for row in ses.execute(text(sql_http).bindparams(d_id = device_id)):
+        elem = Trace(row[0], row[1])
+        http_traces_list.append(elem)
+
+    dns_traces_list = []
+    for row in ses.execute(text(sql_dns).bindparams(d_id = device_id)):
+        elem = Trace(row[0], row[1])
+        dns_traces_list.append(elem)
+
+    return http_traces_list, dns_traces_list
+
+
+def filter_traces(block_length, traces_list, blacklist, filter_blist, filter_iat, filter_spike):
+"""
+Filter out packets from a given list of packets
+Parameters:
+-blocklength(int): length of the interval whose packets will be filtered.
+-traces_list(list of )
+"""
     #print datetime.timedelta(0,block_length)
     i = 0
     filtered_url_traces = defaultdict(list)
@@ -268,31 +307,6 @@ def get_interval_list_predefined_gap(traces_list, gap_interval):
             interval_list.append(pre_traces[i+1])
 
     return interval_list
-
-
-def get_test_data(device_id):
-
-    sql_http = """SELECT req_url_host, ts, lag(ts) OVER (ORDER BY ts) FROM httpreqs2 \
-        WHERE devid =:d_id AND matches_urlblacklist = 'f' and source = 'hostview'"""
-
-    sql_dns = """SELECT query, ts, lag(ts) OVER (ORDER BY ts) FROM dnsreqs \
-        WHERE devid =:d_id AND matches_blacklist = 'f'"""
-
-    http_traces_list = []
-    #add httpreqs
-    for row in ses.execute(text(sql_http).bindparams(d_id = device_id)):
-        elem = Trace(row[0], row[1])
-        http_traces_list.append(elem)
-
-    dns_traces_list = []
-    #add dnsreqs
-    for row in ses.execute(text(sql_dns).bindparams(d_id = device_id)):
-        elem = Trace(row[0], row[1])
-        dns_traces_list.append(elem)
-
-    #traces_list.sort(key = lambda x: x.timst)
-
-    return http_traces_list, dns_traces_list
 
 
 def plot_traces(traces_dict, user_id):
