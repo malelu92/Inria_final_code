@@ -1,5 +1,3 @@
-from blacklist import create_blacklist_dict
-from blacklist import is_in_blacklist
 from collections import defaultdict
 from IPython.display import display
 from matplotlib import dates
@@ -15,6 +13,8 @@ from sqlalchemy import create_engine, text, func
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import NullPool
 
+from blacklist import create_blacklist_dict
+from blacklist import is_in_blacklist
 from inter_event_time_by_url_analysis import filter_spike
 from Traces import Trace
 
@@ -129,6 +129,28 @@ Parameters:
     return filtered_traces_user_dict
 
 
+def get_file_type(f_blacklist, f_seconds, f_spikes):
+"""
+Defines the name for the type of filtering that will be done.
+- f_blacklist (bool): indicates if packets will be filtered by blacklist.
+- f_seconds (bool): indicates if packets will be filtered by interval smaller than a second.
+- f_spikes (bool): indicates if packets will be filtered by periodic intervals.
+Returns:
+- string containing filtering type.
+"""
+    if f_blacklist and f_seconds and f_spikes:
+        return 'filtered'
+
+    elif f_blacklist and not f_seconds and not f_spikes:
+        return 'blist_filtered'
+
+    elif not f_blacklist and f_seconds and f_spikes:
+        return 'interval_filtered'
+
+    elif not f_blacklist and not f_seconds and not f_spikes:
+        return 'not_filtered'
+
+
 def get_test_data(device_id):
 """
 Gets dns and http requests packets from the database.
@@ -138,6 +160,7 @@ Returns:
 - http_traces_list (list of Traces): contains http request packets for a device.
 - dns_traces_list (list of Traces): contains dns request packets for a device.
 """
+
     sql_http = """SELECT req_url_host, ts, lag(ts) OVER (ORDER BY ts) FROM httpreqs2 \
         WHERE devid =:d_id AND matches_urlblacklist = 'f' and source = 'hostview'"""
 
@@ -161,8 +184,14 @@ def filter_traces(block_length, traces_list, blacklist, filter_blist, filter_iat
 """
 Filter out packets from a given list of packets
 Parameters:
--blocklength(int): length of the interval whose packets will be filtered.
--traces_list(list of )
+- blocklength(int): length of the interval whose packets will be filtered.
+- traces_list(list of Traces): list containing object with timestamp and url.
+- blacklist(dictionary of strings): contains list of blacklists to be filtered.
+- filter_blist (bool): indicates if packets will be filtered by blacklist.
+- filter_iat (bool): indicates if packets will be filtered by interval smaller than a second.
+- filter_spike (bool): indicates if packets will be filtered by periodic intervals.
+Returns:
+- filtered_url_traces(dictionary of url): contains filtered timestamps per url.
 """
     #print datetime.timedelta(0,block_length)
     i = 0
@@ -268,20 +297,6 @@ def get_daily_traces(traces, bucket_beg):
             daily_list.append(elem)
 
     return daily_list
-
-def get_file_type(f_blacklist, f_seconds, f_spikes):
-
-    if f_blacklist and f_seconds and f_spikes:
-        return 'filtered'
-
-    elif f_blacklist and not f_seconds and not f_spikes:
-        return 'blist_filtered'
-
-    elif not f_blacklist and f_seconds and f_spikes:
-        return 'interval_filtered'
-
-    elif not f_blacklist and not f_seconds and not f_spikes:
-        return 'not_filtered'
 
 
 def get_interval_list_predefined_gap(traces_list, gap_interval):
