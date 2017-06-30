@@ -1,95 +1,17 @@
-#import datautils
-import itertools
-import matplotlib.pyplot as plt
-import seaborn as sns
-
 from collections import defaultdict
 
-from sqlalchemy import create_engine, text, func
-from sqlalchemy.orm import sessionmaker
-from sqlalchemy.pool import NullPool
-
-from model.Base import Base
-from model.User import User
-from model.Device import Device
-from model.HttpReq import HttpReq
-
-DB='postgresql+psycopg2:///ucnstudy'
-
-engine = create_engine(DB, echo=False, poolclass=NullPool)
-Base.metadata.bind = engine
-Session = sessionmaker(bind=engine)
-
-ses = Session()
-users = ses.query(User)
-
-"""def main():
-    for user in users:
-        print ('user : ' + user.username)
-
-        devids = []
-        for d in user.devices:
-            devids.append(str(d.id))
-
-        devs = {}
-        for d in user.devices:
-            devs[d.id] = d.platform""
-
-        sql_url = ""SELECT DISTINCT req_url_host FROM \
-        httpreqs2 WHERE devid =:d_id AND matches_urlblacklist = 'f';""
-
-        sqlq = ""SELECT ts, lag(ts) OVER (ORDER BY ts) FROM httpreqs2 \
-        WHERE devid =:d_id AND req_url_host =:url_name AND matches_urlblacklist = 'f'""
-
-        sql_userid = ""SELECT login FROM devices WHERE id =:d_id""
-
-        theoretic_count = defaultdict(list)
-        real_count = defaultdict(list)
-
-        for elem_id in devids:
-            url_list = []
-            #interval_list = defaultdict(list)
-
-            user_id = ses.execute(text(sql_userid).bindparams(d_id = elem_id)).fetchone()
-            idt = user_id[0]
-
-            if not analyze_user_device(idt):
-                continue
-
-            print idt
-            for row in ses.execute(text(sql_url).bindparams(d_id = elem_id)):
-                if row[0]:
-                    url_list.append(row[0])
-
-            for url in url_list:
-                intv = 0
-                interval_list = defaultdict(list)
-                for row in ses.execute(text(sqlq).bindparams(d_id = elem_id, url_name = url)):
-                    if row[1] == None:
-                        interval_list[intv].append(row[0])
-                        continue
-
-                    iat = (row[0]-row[1]).total_seconds()
-                    if iat > gap_interval:
-                        intv += 1
-                    interval_list[intv].append(row[0])
-
-                theoretic_count_per_url_list, real_count_per_url_list = calculate_average_periodicity(interval_list)
-
-                if theoretic_count_per_url_list:
-                    theoretic_count[idt].append(theoretic_count_per_url_list)
-                if real_count_per_url_list:
-                    real_count[idt].append(real_count_per_url_list)
-
-            plot_counts_ditr(theoretic_count[idt], real_count[idt], idt)
-"""
-def calculate_gap_interval(traces_list):
+def calculate_gap_interval(packets_list):
     """
+    Gets the gap to unite sessions.
+    Parameters:
+    - packets_list(list of timestamps): list containing packet times.
+    Returns:
+    - iats[pos](int): gap time.
     """
 
     iat_list = []
-    for i in range(0, len(traces_list)-1):
-        iat = (traces_list[i+1]-traces_list[i]).total_seconds()
+    for i in range(0, len(packets_list)-1):
+        iat = (packets_list[i+1]-packets_list[i]).total_seconds()
         iat = get_approximation(iat)
         iat_list.append(iat)
 
@@ -104,50 +26,41 @@ def calculate_gap_interval(traces_list):
     return iats[cont-1]
 
 
-def get_interval_list(traces_list):
+def get_interval_list(packets_list):
     """
+    Gets packet times divided into sessions.
+    Parameters:
+    - packets_list(list of timsteamps): contains stream of timestamps to be divided into sessions.
+    Returns:
+    interval_dict(dictionary): dict containing the timestamps per interval.
     """
     intv = 0
-    interval_list = defaultdict(list)
+    interval_dict = defaultdict(list)
     gap_interval = calculate_gap_interval(traces_list)
 
-    #print 'GAP'
-    #print gap_interval
-
-    interval_list[intv].append(traces_list[0])
-    for i in range(0, len(traces_list)-1):
-        #print traces_list[i]
-        iat = (traces_list[i+1]-traces_list[i]).total_seconds()
+    interval_dict[intv].append(packets_list[0])
+    for i in range(0, len(packets_list)-1):
+        iat = (packets_list[i+1]-packets_list[i]).total_seconds()
         if iat > gap_interval:
             intv += 1
-        interval_list[intv].append(traces_list[i+1])
+        interval_dict[intv].append(packets_list[i+1])
 
-    return interval_list
+    return interval_dict
 
-"""def get_interval_list_predefined_gap(traces_list, gap_interval):
-    intv = 0
-    interval_list = defaultdict(list)
 
-    interval_list[intv].append(traces_list[0])
-    for i in range(0, len(traces_list)-1):
-        #print traces_list[i]
-        iat = (traces_list[i+1]-traces_list[i]).total_seconds()
-        if iat > gap_interval:
-            intv += 1
-        interval_list[intv].append(traces_list[i+1])
-
-    return interval_list
-"""
-
-def get_free_spikes_traces(interval_dict, url_domain):
+def get_free_spikes_traces(interval_dict):
     """
+    Eliminates periodic events.
+    Parameters:
+    - interval_dict(dictionary): dict containing the timestamps per interval.
+    Returns:
+    
     """
     #calculate theoretic periodicity per interval
     theoretic_count = []
     real_count = []
     filtered_traces = []
     eliminate_url = False
-    deleted_url = None
 
     #key = each interval
     for key in interval_dict.keys():
@@ -191,7 +104,6 @@ def get_free_spikes_traces(interval_dict, url_domain):
                     #take whole interval off
                     if re_count >= (theo_count - theo_count*error_margin):
                         filtered_interval_list = []
-                        deleted_url = url_domain
                         break
                     #take only spike off
                     else:
@@ -204,31 +116,13 @@ def get_free_spikes_traces(interval_dict, url_domain):
     else:
         filtered_traces = list(itertools.chain(*filtered_traces))
 
-    return filtered_traces, deleted_url
+    return filtered_traces
 
-"""
-def eliminate_spikes(interval_list, iat_to_eliminate):
-
-    timsts = interval_list
-    filtered_interval_list = []
-
-    filtered_interval_list.append(timsts[0])
-    if len(timsts) > 1:
-        for i in range (0, len(timsts)-1):
-            iat = (timsts[i+1]-timsts[i]).total_seconds()
-
-            #round interval
-            iat = get_approximation(iat)
-
-            if iat != iat_to_eliminate:
-                filtered_interval_list.append(timsts[i+1])
-
-    return filtered_interval_list
-                    
-"""
 
 def get_interval_distribution(key, interval_list):
     """
+    Gets the quantity of times each inter events time appears.
+    
     """
     interval_dist = defaultdict(int)
     interval_dist['total'] = 0
@@ -248,18 +142,10 @@ def get_interval_distribution(key, interval_list):
 
     return interval_dist
                     
-"""                    
-def round(value):
 
-    if value - int(value) >= 0.5:
-        value = int(value)+1
-    else:
-        value = int(value)
-
-    return value
-"""
 def get_approximation(value):
     """
+    Returns a approximation for a given second.
     """
     if value <= 5:
         return round(value)
@@ -359,18 +245,3 @@ def get_approximation(value):
         return 36000 #10 hrs
     else:
         return 43200 #12 hrs
-    
-"""
-def analyze_user_device(user_dev):
-
-    if user_dev != 'bowen.laptop' and user_dev != 'bridgeman.laptop2' and \
-       user_dev != 'bridgeman.stuartlaptop' and user_dev != 'chrismaley.loungepc' and \
-        user_dev != 'chrismaley.mainpc' and user_dev != 'clifford.mainlaptop' and \
-        user_dev != 'gluch.laptop' and user_dev != 'kemianny.mainlaptop' and user_dev != 'neenagupta.workpc':
-        return False
-    return True
-
-"""
-
-if __name__ == '__main__':
-    main()

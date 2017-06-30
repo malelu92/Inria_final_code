@@ -75,9 +75,8 @@ def detection_algorithm(f_blacklist, f_seconds, f_spikes):
             print idt
             packets_file.write(str(idt)+'\n')
 
-            if idt != 'bowen.laptop' and idt != 'bridgeman.stuartlaptop':
+            if idt != 'bowen.laptop':
                 continue
-            
 
             #list contains Traces -> timestamp, url
             http_traces_list, dns_traces_list = get_test_data(elem_id)
@@ -291,7 +290,7 @@ def filter_packet(packet, packets_list, blacklist, f_blacklist, f_seconds, f_spi
     if f_spikes:
         for elem in packets_list:
             timst_list.append(elem.timst)
-        timst_list = filter_spikes(timst_list, url_domain)
+        timst_list = filter_spikes(timst_list)
         if packet.timst in timst_list:
             return True
         else:
@@ -304,7 +303,6 @@ def filter_spikes(packets_list, url_domain):
     Eliminates periodic intervals.
     Parameters:
     - packets_list(list of Traces): packets with same url that will be filtered.
-    - url_domain(string): url of set of packets
     Returns:
     -packets_list(list of Traces): list of user facing packets. 
     """
@@ -314,7 +312,7 @@ def filter_spikes(packets_list, url_domain):
     while pre_filtered_list != packets_list and len(packets_list) > 1:
         pre_filtered_list = packets_list
         interval_list = get_interval_list(packets_list)
-        packets_list, deleted_url = get_free_spikes_traces(interval_list, url_domain)
+        packets_list = get_free_spikes_traces(interval_list)
         cont +=1
 
     return packets_list
