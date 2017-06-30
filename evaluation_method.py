@@ -1,10 +1,8 @@
 from collections import defaultdict
-from matplotlib import dates
 
 import datetime
 import datautils
 import scipy as sci
-import math
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
@@ -94,6 +92,13 @@ def get_data_from_file(info_file):
 
 def get_packets_per_interval(abs_beg, abs_end, packets):
     """
+    Gets number of packets that were not filterd per interval.
+    Parameters:
+    - abs_beg(list): contains beginning of absence intervals.
+    - abs_end(list): contains end of absence intervals.
+    - packets(list of timestamp): packets to be checked.
+    Returns:
+    - list_packets_per_interval(list of int):  contains number of packets per interval. 
     """
     intervals = defaultdict(int)
     list_packets_per_interval = []
@@ -110,48 +115,25 @@ def get_packets_per_interval(abs_beg, abs_end, packets):
             cont += 1
 
     for itv, tot_pac in intervals.iteritems():
-        #print tot_pac
         list_packets_per_interval.append(tot_pac)
 
     return list_packets_per_interval
 
 
-"""def get_timst_from_file(data_file):
-
-    content = data_file.read().splitlines()
-    traces = defaultdict(list)
-    cont = 0
-    user = None
-
-    for line in content:
-        if cont == 0:
-            cont += 1
-            continue
-
-        if line == 'bowen.laptop' or line == 'bridgeman.laptop2' or line == 'bridgeman.stuartlaptop' or line == 'chrismaley\
-.loungepc' or line == 'chrismaley.mainpc' or line == 'clifford.mainlaptop' or line == 'gluch.laptop' or line == 'kemianny.m\
-ainlaptop' or line == 'neenagupta.workpc':
-            user = line
-        else:
-            timst = datetime.datetime.strptime(line, "%Y-%m-%d %H:%M:%S")
-            traces[user].append(timst)
-
-    return traces
-"""
 def plot_cdf_absence(blist, not_filtered, filtered, interval):
     """
+    Plots CDF of user absence comparing the filtering methods.
+    Parameters:
+    - blist (list of int): number of packets per interval.
+    - not_filtered (list of int): number of packets per interval.
+    - filtered (list of int): number of packets per interval.
+    - interval (list of int): number of packets per interval.
     """
     sns.set_style('whitegrid')
 
     fig, (ax1) = plt.subplots(1, 1, figsize=(7, 5))
     (x_blist,y_blist) = datautils.aecdf(blist)
     (x_int,y_int) = datautils.aecdf(interval)
-    #print 'blist'
-    #x_blist, y_blist = get_data_for_cdf(blist)
-    #print 'not filtered'
-    #x_nfilt, y_nfilt = get_data_for_cdf(not_filtered)
-    #print 'filtered'
-    #x_filt, y_filt = get_data_for_cdf(filtered)
     (x_filt,y_filt) = datautils.aecdf(filtered)
     (x_nfilt,y_nfilt) = datautils.aecdf(not_filtered)
     plt.plot(x_nfilt,y_nfilt, '-k', lw=2, label = 'not filtered')
@@ -160,16 +142,6 @@ def plot_cdf_absence(blist, not_filtered, filtered, interval):
     plt.plot(x_filt,y_filt, '-g', lw=2, label = 'all filters')
 
     plt.legend (loc=0, borderaxespad=0., fontsize = 20, frameon=True, fancybox = False, framealpha = 1)
-
-    #for i in range(0, len(x_filt)):
-        #print x_nfilt[i]
-        #print y_nfilt[i]
-        #print '====='
-
-    #total = 0
-    #for inte in blist.keys():
-        #print str(inte) + ' blist ' + str(blist[inte]) +  ' filtered ' + str(filtered[inte]) +  ' not_filt ' + str(not_filtered[inte])# +  ' interval ' + str(per_interval[inte])
-
     plt.title('Cumulative Fraction of Intervals', fontsize = 20)
     plt.ylabel('CFI', fontsize = 20)
     plt.xscale('log')
@@ -179,9 +151,7 @@ def plot_cdf_absence(blist, not_filtered, filtered, interval):
     ax1.set_xlim(0,1000)
     ax1.set_ylim(0,1)
     plt.tick_params(labelsize=20)
-    #plt.xlim(min(values_list),max(values_list))
 
-    #plt.show()
     plt.tight_layout()
     fig.savefig('plots/absence_packets.png')
     plt.close(fig)
