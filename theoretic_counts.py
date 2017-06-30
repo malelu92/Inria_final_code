@@ -54,17 +54,18 @@ def get_free_spikes_traces(interval_dict):
     Parameters:
     - interval_dict(dictionary): dict containing the timestamps per interval.
     Returns:
-    
+    - filtered_packets(list of timestamps): contains the timestamps that were not eliminated
+    b the periodic filter. 
     """
     #calculate theoretic periodicity per interval
     theoretic_count = []
     real_count = []
-    filtered_traces = []
+    filtered_packets = []
     eliminate_url = False
 
     #key = each interval
     for key in interval_dict.keys():
-        distrib_dict = get_interval_distribution(key, interval_dict)
+        distrib_dict = get_interval_distribution(interval_dict[key])
         filtered_interval_list = interval_dict[key]
 
         for iat_total in distrib_dict.keys():
@@ -109,24 +110,28 @@ def get_free_spikes_traces(interval_dict):
                     else:
                         filtered_interval_list = eliminate_spikes(filtered_interval_list, iat_total)
 
-        filtered_traces.append(filtered_interval_list)        
+        filtered_packets.append(filtered_interval_list)        
 
     if eliminate_url:
         filtered_traces = []
     else:
         filtered_traces = list(itertools.chain(*filtered_traces))
 
-    return filtered_traces
+    return filtered_packets
 
 
-def get_interval_distribution(key, interval_list):
+def get_interval_distribution(interval_list):
     """
     Gets the quantity of times each inter events time appears.
-    
+    Parameters:
+    - interval_list(list of timestamps): timestamps present on certain interval.
+    Returns:
+    - interval_dist(dictionary): contains the distribution of inter event times in
+    the interval.
     """
     interval_dist = defaultdict(int)
     interval_dist['total'] = 0
-    timsts = interval_list[key]
+    timsts = interval_list
 
     if len(timsts) > 1:
         for i in range (0, len(timsts)-1):
