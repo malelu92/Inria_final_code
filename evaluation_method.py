@@ -13,21 +13,34 @@ import seaborn as sns
 from inter_event_time_analysis_activities import get_activities_inter_times
 
 def comparison_evaluation_methods(blist_file, filtered_file, interval_file, not_filtered_file):
-
+    """
+    Compares performance of filtering methods on user absence times.
+    Parameters:
+    - blist_file(file): contains timestamps followed by True (if user facing) and False otherwise.
+    - filtered_file(file): contains timestamps followed by True (if user facing) and False otherwise. 
+    - interval_file(file): contains timestamps followed by True (if user facing) and False otherwise.
+    - not_filtered_file(file): contains timestamps followed by True (if user facing) and False otherwise.
+    """
     abs_beg, abs_end = get_activities_inter_times()
-    blist_itv_pkts = evaluation_method_absence(blist_file, abs_beg, abs_end)
-    filt_itv_pkts = evaluation_method_absence(filtered_file, abs_beg, abs_end)
-    interval_itv_pkts = evaluation_method_absence(interval_file, abs_beg, abs_end)
-    nfilt_itv_pkts = evaluation_method_absence(not_filtered_file, abs_beg, abs_end)
+    blist_itv_pkts, total_blist = evaluation_method_absence(blist_file, abs_beg, abs_end)
+    filt_itv_pkts, total_filt = evaluation_method_absence(filtered_file, abs_beg, abs_end)
+    interval_itv_pkts, total_interval = evaluation_method_absence(interval_file, abs_beg, abs_end)
+    nfilt_itv_pkts, total_nfilt = evaluation_method_absence(not_filtered_file, abs_beg, abs_end)
 
-    print len(blist_itv_pkts)
-    for elem in blist_itv_pkts:
-        print elem
-
+    print len(nfilt_itv_pkts)
     plot_cdf_absence(blist_itv_pkts, nfilt_itv_pkts, filt_itv_pkts, interval_itv_pkts)
 
 def evaluation_method_absence(filt_file, abs_beg, abs_end):
-
+    """
+    Evaluates filters.
+    Parameters:
+    - filt_file(file): contains timestamps filtered (False) or not filtered (True)
+    - abs_beg(dictionary): contains beginning of intervals of absence per user.
+    - abs_end(dictionary): contains ending of intervals of absence per user.
+    Returns:
+    - filt_list(list): contains numebr of packets per interval.
+    - total_filt(int): number of packets found on absent periods.
+    """
     filt = get_data_from_file(filt_file)
 
     filt_list = []
@@ -42,73 +55,18 @@ def evaluation_method_absence(filt_file, abs_beg, abs_end):
             total_filt += per_filtered[cont] 
             filt_list.append(per_filtered[cont])
 
-        print 'total packets remaining ' + str(total_filt)
-
-    return filt_list
-
-def evaluation_method_user_presence():
+    return filt_list, total_filt
 
 
-    blist_file = open('final_files/user_packets_true_false_blist_filtered_all')
-    filtered_file = open('final_files/user_packets_true_false_filtered_all')
-    interval_file = open('final_files/user_packets_true_false_interval_filtered_all')
-    #not_filtered_file = open('traces_bucket_0_not_filtered')
-    abs_beg, abs_end = get_activities_inter_times()
-
-    #blist_dict = get_timst_from_file(blist_file)
-    #filtered_dict = get_timst_from_file(filtered_file)
-    #interval_dict = get_timst_from_file(interval_file)
-    #not_filtered_dict = get_timst_from_file(filtered_file)
-
-    blist, not_filt = get_data_from_file(blist_file)
-    filt, not_filt = get_data_from_file(filtered_file)
-    int_filt, not_filt = get_data_from_file(interval_file)
-
-    blist_list = []
-    itv_list = []
-    filt_list = []
-    nfilt_list = []
-    for user in abs_beg.keys():
-        if user == 'kemianny.mainlaptop':
-            continue
-        print user
-        per_blist = get_packets_per_interval(abs_beg[user], abs_end[user], blist[user])
-        per_filtered = get_packets_per_interval(abs_beg[user], abs_end[user], filt[user])
-        per_not_filtered = get_packets_per_interval(abs_beg[user], abs_end[user], not_filt[user])
-        per_interval = get_packets_per_interval(abs_beg[user], abs_end[user], int_filt[user])
-
-        for cont in range(0, len(per_blist)):
-            if per_filtered[cont] > per_blist[cont]:
-                per_filtered[cont] = per_blist[cont]
-            if per_filtered[cont] > per_interval[cont]:
-                per_filtered[cont] = per_interval[cont]
-            #print str(inte) + ' blist ' + str(per_blist[inte]) +  ' filtered ' + str(per_filtered[inte]) +  ' not_\filt ' + str(per_not_filtered[inte])# +  ' interval ' + str(per_interval[inte])
-        total_blist = 0
-        total_itv = 0
-        total_filt = 0
-        total_nfilt = 0
-        for cont in range(0, len(per_blist)):
-            total_blist += per_blist[cont]
-            total_itv += per_interval[cont]
-            total_filt += per_filtered[cont]
-            total_nfilt += per_not_filtered[cont]
-            blist_list.append(per_blist[cont])
-            itv_list.append(per_interval[cont])
-            filt_list.append(per_filtered[cont])
-            nfilt_list.append(per_not_filtered[cont])
-
-        print 'total blist ' + str(total_blist)
-        print 'total itv ' + str(total_itv)
-        print 'total filt ' + str(total_filt)
-        print 'total nfilt ' + str(total_nfilt)
-
-    plot_cdf_absence(blist_list, nfilt_list, filt_list, itv_list)
-
-
-
-def get_data_from_file(packets_file):
-
-    content = packets_file.read().splitlines()
+def get_data_from_file(info_file):
+    """
+    Reads file and extract timestamps that are considered "True".
+    Parameters:
+    - info_file(file): file containing packets filtered.
+    Returns:
+    - packets(dictionary): contains timestamps per user.
+    """
+    content = info_file.read().splitlines()
 
     packets = defaultdict(list)
 
@@ -135,6 +93,8 @@ def get_data_from_file(packets_file):
     return packets
 
 def get_packets_per_interval(abs_beg, abs_end, packets):
+    """
+    """
     intervals = defaultdict(int)
     list_packets_per_interval = []
     for i in range(0, len(abs_beg)):
@@ -150,144 +110,13 @@ def get_packets_per_interval(abs_beg, abs_end, packets):
             cont += 1
 
     for itv, tot_pac in intervals.iteritems():
-        print tot_pac
+        #print tot_pac
         list_packets_per_interval.append(tot_pac)
 
     return list_packets_per_interval
 
-def evaluation_method():
 
-    tp, tn, fp, fn, cont = 0, 0, 0, 0, 0
-    packets_file = open('final_files/user_packets_true_false_filtered','r')
-    #act_file = open('user_activities_devapptraffic_sockets.txt', 'r')
-    act_file = open('user_activities_http_packets', 'r')
-    act_true, act_false = get_timst_from_act_file(act_file)
-
-    user = 'clifford.mainlaptop'
-
-    kemianny = False
-
-    content = packets_file.read().splitlines()
-
-    packets_true = []
-    packets_false = []
-    for line in content:
-        if cont == 0:
-            cont += 1
-            continue
-
-        if line == user:
-            continue
-        
-        if line == 'kemianny.mainlaptop':
-            kemianny = True
-
-        if kemianny == False:
-            if 'False' in line:
-                packet_status = False
-                timst = line.rsplit(' False', 1)[0]
-            else:
-                packet_status = True
-                timst = line.rsplit(' True', 1)[0]
-
-            if len(timst) > 20:
-                timst = datetime.datetime.strptime(timst, "%Y-%m-%d %H:%M:%S.%f")
-            else:
-                timst = datetime.datetime.strptime(timst, "%Y-%m-%d %H:%M:%S")
-
-            if packet_status:
-                packets_true.append(timst)
-            else:
-                packets_false.append(timst)
-
-    act_true = sorted(act_true)
-    act_false = sorted(act_false)
-    packets_true = sorted(packets_true)
-    packets_false = sorted(packets_false)
-
-    act_true_beg, act_true_end = make_interval(act_true)
-    packets_true_beg, packets_true_end = make_interval(packets_true)
-
-    packets_total = packets_true_beg + packets_true_end
-    min_diff_list = calculate_beg_interval_mean_error(act_true_beg, packets_true_beg)
-    plot_cdf_interval_times(min_diff_list)
-
-
-    #plot_daily(act_true_beg, act_true_end, packets_true_beg, packets_true_end)
-
-
-    """for elem in packets_true:
-        #print elem
-        groundtruth_status_true = elem in act_true
-        groundtruth_status_false = elem in act_false
-
-        #packet not in sockets
-        if not groundtruth_status_true and not groundtruth_status_false:
-            continue
-
-        if groundtruth_status_true:
-            tp += 1
-        if groundtruth_status_false:
-            fp += 1
-
-
-    for elem in packets_false:
-        #print elem
-        groundtruth_status_true = elem in act_true
-        groundtruth_status_false = elem in act_false
-
-        #packet not in sockets
-        if not groundtruth_status_true and not groundtruth_status_false:
-            continue
-
-        if groundtruth_status_false:
-            tn += 1
-        if groundtruth_status_true:
-            fn += 1
-
-    precision = tp/float(tp+fp)
-    recall = tp/float(tp+fn)
-
-    print 'tp ' + str(tp)
-    print 'fp ' + str(fp)
-    print 'fn ' + str(fn)
-    print 'tn ' + str(tn)
-    print 'precision ' + str(precision)
-    print 'recall ' + str(recall)"""
-
-def calculate_beg_interval_mean_error(act_beg, packets_beg):
-    
-    total_error = 0
-    min_diff_list = []
-    for elem in act_beg:
-        min_diff = 60*60*24
-        for cont in range(0, len(packets_beg)):
-            diff = (packets_beg[cont] - elem).total_seconds()
-            if abs(diff) < abs(min_diff):
-                min_diff = diff
-                min_timst = packets_beg[cont]
-        #print '======'
-        #print 'act_beg:    ' + str(elem)
-        #print 'packet_beg: ' + str(min_timst)
-        #print min_diff
-        min_diff_list.append(min_diff)
-        print min_diff
-        total_error += abs(min_diff)
-
-    average_error = float(total_error)/len(act_beg)
-    print 'average error: ' + str(average_error)
-
-    std = 0
-    for elem in min_diff_list:
-        std += pow((abs(elem) - average_error), 2)
-
-    variance = float(std)/len(act_beg)
-    stnd_dev = math.sqrt(variance)
-    print 'standard deviation: ' + str(stnd_dev)
-
-    return min_diff_list
-
-def get_timst_from_act_file(data_file):
+"""def get_timst_from_act_file(data_file):
 
     content = data_file.read().splitlines()
     traces_true = []
@@ -314,7 +143,7 @@ def get_timst_from_act_file(data_file):
             traces_false.append(timst)
 
     return traces_true, traces_false
-
+"""
 
 def get_timst_from_file(data_file):
 
@@ -338,51 +167,9 @@ ainlaptop' or line == 'neenagupta.workpc':
 
     return traces
 
-
-def make_interval(traces_list):
-    intv = 0
-    interval_list = defaultdict(list)
-    gap_interval = 150
-    interval_beg = []
-    interval_end = []
-
-    #interval_list[intv].append(traces_list[0])
-    interval_beg.append(traces_list[0])
-    int_end = traces_list[0]
-    for i in range(0, len(traces_list)-1):
-        iat = (traces_list[i+1]-traces_list[i]).total_seconds()
-        if iat <= gap_interval:
-            int_end = traces_list[i+1]
-            #intv += 1
-        else:
-            interval_end.append(int_end)
-            interval_beg.append(traces_list[i+1])
-            int_end = traces_list[i+1]
-
-        #interval_list[intv].append(traces_list[i+1])
-
-    interval_end.append(int_end)
-    return interval_beg, interval_end
-
-def get_data_for_cdf(in_list):
-
-    total = 0
-    x_clt = 0
-    x = []
-    y = []
-    for itv, elem in in_list.iteritems():
-        total += elem
-    print total
-
-    for itv, elem in in_list.iteritems():
-        x_clt += elem
-        x.append(x_clt)
-        y.append(float(x_clt)/total)
-
-    return x, y
-
 def plot_cdf_absence(blist, not_filtered, filtered, interval):
-
+    """
+    """
     sns.set_style('whitegrid')
 
     fig, (ax1) = plt.subplots(1, 1, figsize=(7, 5))
@@ -427,94 +214,6 @@ def plot_cdf_absence(blist, not_filtered, filtered, interval):
     plt.tight_layout()
     fig.savefig('plots/absence_packets.png')
     plt.close(fig)
-
-
-def plot_cdf_interval_times(values_list):
-
-    sns.set_style('whitegrid')
-
-    fig, (ax1) = plt.subplots(1, 1, figsize=(10, 4))
-    (x,y) = datautils.aecdf(values_list)
-
-    for elem in x:
-        print 'x ' + str(elem)
-    ax1.plot(x,y, '-b', lw=2)
-    ax1.set_title('Inter-Event Time [events=%d]'%(len(x)))
-    ax1.set_ylabel('CDF')
-    ax1.set_xscale('symlog')
-    ax1.set_xlabel('seconds')
-    ax1.set_xticks([-600*3,-600,-60,-1,0,1,60,600,600*3])
-    ax1.set_xticklabels(['-30 min','-10 min','-1min','-1s','0s','1s','1min','10 min', '30 min'])
-    ax1.set_xlim(min(values_list),max(values_list))
-    ax1.set_ylim(0,1)
-    plt.xlim(min(values_list),max(values_list))
-
-    plt.tight_layout()
-    fig.savefig('figs_daily_comparison_final/clifford_intervals.png')
-    plt.close(fig)
-
-
-def plot_daily(act_true_beg, act_true_end, packets_true_beg, packets_true_end):
-
-    x_beg_act = []
-    x_end_act = []
-    y_act = []
-
-    x_beg_packets = []
-    x_end_packets = []
-    y_packets = []
-
-    x_beg_act, x_end_act, y_act = get_x_y(act_true_beg, act_true_end)
-    x_beg_packets, x_end_packets, y_packets = get_x_y(packets_true_beg, packets_true_end) 
-
-    sns.set(style='whitegrid')
-    fig, ax = plt.subplots(1, 1, figsize=(12, 8))
-
-    y_label = list(set(y_act))
-    hfmt = dates.DateFormatter('%m-%d')
-    ax.yaxis.set_major_formatter(hfmt)
-
-    ax.hlines(y_act, x_beg_act, x_end_act, 'g')
-    ax.hlines(y_packets, x_beg_packets, x_end_packets, 'b')
-
-    ax.set_title('ground truth and filtered packets', fontsize = 30)#, device=%s]'%(username, platform))
-    ax.set_ylabel('Date', fontsize = 30)
-    ax.set_yticks(y_act)
-
-    ax.set_xlabel('Device Activity', fontsize = 30)
-    ax.set_xlim([0,24])
-    plt.tight_layout()
-    #plt.show()
-    fig.savefig('figs_daily_comparison_final/clifford.png')
-    plt.close(fig)
-
-def get_x_y(beg, end):
-
-    x_beg = []
-    x_end = []
-    y = []
-
-    cont = 0
-    for timst in beg:
-        end_timst = end[cont]
-        d = timst.date()
-        if timst.day == end_timst.day:
-            x_beg.append(timst.hour+timst.minute/60.0+timst.second/3600.0)
-            x_end.append(end_timst.hour+end_timst.minute/60.0+end_timst.second/3600.0)
-            y.append(d)
-            cont = cont + 1
-        else:
-            x_beg.append(timst.hour+timst.minute/60.0+timst.second/3600.0)
-            x_end.append(23.99999)
-            y.append(timst.date())
-
-            x_beg.append(00.01)
-            x_end.append(end_timst.hour+end_timst.minute/60.0+end_timst.second/3600.0)
-            d += timedelta(days=1)
-            y.append(d)
-            cont = cont + 1
-
-    return x_beg, x_end, y
 
 if __name__ == "__main__":
     blist_file = open('final_files/user_packets_true_false_blist_filtered')
