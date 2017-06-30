@@ -78,18 +78,22 @@ def detection_algorithm(f_blacklist, f_seconds, f_spikes):
             print len(dns_traces_list)
 
             cont = 0
+            packets_true = defaultdict(list)
+            packets_false = defaultdict(list)
             for packet in http_traces_list:
                 print cont
                 packets_list = get_packets_in_interval(packet, http_traces_list, inspection_interval)
-                pkt_user_gen = filter_packet(packet, packets_list, blacklist, f_blacklist, f_seconds, f_spikes)
+                pkt_user_gen = filter_packet(packet, packets_list, blacklist, f_blacklist, f_seconds, f_spikes, packets_true, packets_false)
                 packets_file.write(str(packet.timst) + ' ' + str(pkt_user_gen) + '\n')
                 if pkt_user_gen:
                     filtered_traces_user_dict[idt].append(packet.timst)
                 cont+=1
 
+            packets_true = defaultdict(list)
+            packets_false = defaultdict(list)
             for packet in dns_traces_list:
                 packets_list = get_packets_in_interval(packet, dns_traces_list, inspection_interval)
-                pkt_user_gen = filter_packet(packet, packets_list, blacklist, f_blacklist, f_seconds, f_spikes)
+                pkt_user_gen = filter_packet(packet, packets_list, blacklist, f_blacklist, f_seconds, f_spikes, packets_true, packets_false)
                 packets_file.write(str(packet.timst) + ' ' + str(pkt_user_gen) + '\n')
                 if pkt_user_gen:
                     filtered_traces_user_dict[idt].append(packet.timst)
@@ -247,7 +251,7 @@ def get_test_data(device_id):
     return http_traces_list, dns_traces_list
 
 
-def filter_packet(packet, packets_list, blacklist, f_blacklist, f_seconds, f_spikes):
+def filter_packet(packet, packets_list, blacklist, f_blacklist, f_seconds, f_spikes, packets_true, packets_false):
     """
     Defines if given packet is user or background generated.
     Parameters:
@@ -277,8 +281,10 @@ def filter_packet(packet, packets_list, blacklist, f_blacklist, f_seconds, f_spi
     if f_seconds and len(packets_list) >= 2:
         previous_packet = packets_list[len(packets_list)-2]
         iat = (previous_packet.timst - packet.timst).total_seconds()
-        if iat < 1:
+        if iat < 1 and (previous_packet.timst in packets_false[packet.url_domain]):
             return False
+        elif iat < 1 and (previous_packet.timst in packets_true[packet.url_domain]):
+            return True
 
     #checks if packet is part of a periodic interval
     if f_spikes:

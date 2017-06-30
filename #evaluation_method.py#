@@ -110,7 +110,6 @@ def get_packets_per_interval(abs_beg, abs_end, packets):
             cont += 1
 
     for itv, tot_pac in intervals.iteritems():
-        #print tot_pac
         list_packets_per_interval.append(tot_pac)
 
     return list_packets_per_interval
