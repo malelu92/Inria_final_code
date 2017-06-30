@@ -33,13 +33,13 @@ ses = Session()
 users = ses.query(User)
 
 def final_algorithm_filtered_traces(f_blacklist, f_seconds, f_spikes):
-"""
-Filters out background activity and create file with remaining traces.
-Parameters:
-- f_blacklist (bool): indicates if packets will be filtered by blacklist.
-- f_seconds (bool): indicates if packets will be filtered by interval smaller than a second.
-- f_spikes (bool): indicates if packets will be filtered by periodic intervals.
-"""
+    """
+    Filters out background activity and create file with remaining traces.
+    Parameters:
+    - f_blacklist (bool): indicates if packets will be filtered by blacklist.
+    - f_seconds (bool): indicates if packets will be filtered by interval smaller than a second.
+    - f_spikes (bool): indicates if packets will be filtered by periodic intervals.
+    """
     blacklist = create_blacklist_dict()
     filtered_traces_user_dict = defaultdict(list)
 
@@ -129,14 +129,14 @@ Parameters:
 
 
 def get_file_type(f_blacklist, f_seconds, f_spikes):
-"""
-Defines the name for the type of filtering that will be done.
-- f_blacklist (bool): indicates if packets will be filtered by blacklist.
-- f_seconds (bool): indicates if packets will be filtered by interval smaller than a second.
-- f_spikes (bool): indicates if packets will be filtered by periodic intervals.
-Returns:
-- string containing filtering type.
-"""
+    """
+    Defines the name for the type of filtering that will be done.
+    - f_blacklist (bool): indicates if packets will be filtered by blacklist.
+    - f_seconds (bool): indicates if packets will be filtered by interval smaller than a second.
+    - f_spikes (bool): indicates if packets will be filtered by periodic intervals.
+    Returns:
+    - string containing filtering type.
+    """
     if f_blacklist and f_seconds and f_spikes:
         return 'filtered'
 
@@ -151,14 +151,14 @@ Returns:
 
 
 def get_interval_list_predefined_gap(traces_list, gap_interval):
-"""
-Creates extra packets, based on the length of the sliding window.
-Parameters:
-- traces_list(list of timestamps): contains times of packets that were requested.
-- gap_interval(int): sliding window length.
-Returns:
-- interval_list(list of timestamps): list containing previous and new timestamps. 
-"""
+    """
+    Creates extra packets, based on the length of the sliding window.
+    Parameters:
+    - traces_list(list of timestamps): contains times of packets that were requested.
+    - gap_interval(int): sliding window length.
+    Returns:
+    - interval_list(list of timestamps): list containing previous and new timestamps. 
+    """
     intv = 0
     interval_list = []
     pre_traces = []
@@ -184,14 +184,14 @@ Returns:
 
 
 def get_test_data(device_id):
-"""
-Gets dns and http requests packets from the database.
-Parameters:
-- device_id(int): unique device identifier.
-Returns:
-- http_traces_list (list of Traces): contains http request packets for a device.
-- dns_traces_list (list of Traces): contains dns request packets for a device.
-"""
+    """
+    Gets dns and http requests packets from the database.
+    Parameters:
+    - device_id(int): unique device identifier.
+    Returns:
+    - http_traces_list (list of Traces): contains http request packets for a device.
+    - dns_traces_list (list of Traces): contains dns request packets for a device.
+    """
 
     sql_http = """SELECT req_url_host, ts, lag(ts) OVER (ORDER BY ts) FROM httpreqs2 \
         WHERE devid =:d_id AND matches_urlblacklist = 'f' and source = 'hostview'"""
@@ -213,18 +213,18 @@ Returns:
 
 
 def filter_traces(block_length, traces_list, blacklist, filter_blist, filter_iat, filter_spike):
-"""
-Filter out packets from a given list of packets
-Parameters:
-- blocklength(int): length of the interval whose packets will be filtered.
-- traces_list(list of Traces): list containing object with timestamp and url.
-- blacklist(dictionary of strings): contains list of blacklists to be filtered.
-- filter_blist (bool): indicates if packets will be filtered by blacklist.
-- filter_iat (bool): indicates if packets will be filtered by interval smaller than a second.
-- filter_spike (bool): indicates if packets will be filtered by periodic intervals.
-Returns:
-- filtered_url_traces(dictionary of url): contains filtered timestamps per url.
-"""
+    """
+    Filter out packets from a given list of packets
+    Parameters:
+    - blocklength(int): length of the interval whose packets will be filtered.
+    - traces_list(list of Traces): list containing object with timestamp and url.
+    - blacklist(dictionary of strings): contains list of blacklists to be filtered.
+    - filter_blist (bool): indicates if packets will be filtered by blacklist.
+    - filter_iat (bool): indicates if packets will be filtered by interval smaller than a second.
+    - filter_spike (bool): indicates if packets will be filtered by periodic intervals.
+    Returns:
+    - filtered_url_traces(dictionary of url): contains filtered timestamps per url.
+    """
     #print datetime.timedelta(0,block_length)
     i = 0
     filtered_url_traces = defaultdict(list)
@@ -321,16 +321,6 @@ def get_block_traces(traces, bucket_size):
 
     return final_traces
 
-
-def get_daily_traces(traces, bucket_beg):
-    daily_list = []
-    for elem in traces:
-        if elem.date() == bucket_beg.date():
-            daily_list.append(elem)
-
-    return daily_list
-
-
 def plot_traces(traces_dict, user_id):
     x = []
     y = []
@@ -341,23 +331,13 @@ def plot_traces(traces_dict, user_id):
         x.append(timst.hour+timst.minute/60.0+timst.second/3600.0)
         y.append(timst.date())
 
-    """for key, timsts in http_traces_dict.iteritems():
-        for timst in timsts:
-            x.append(timst.hour+timst.minute/60.0+timst.second/3600.0)
-            y.append(timst.date())
-
-    for key, timsts in dns_traces_dict.iteritems():
-        for timst in timsts:
-            x.append(timst.hour+timst.minute/60.0+timst.second/3600.0)
-            y.append(timst.date())"""
-
     y_label = list(set(y))
     hfmt = dates.DateFormatter('%m-%d')
     ax.yaxis.set_major_formatter(hfmt)
 
     ax.plot(x,y, '.g')
 
-    ax.set_title('Device usage [user=%s]'%(user_id), fontsize = 30)#, device=%s]'%(username, platform))
+    ax.set_title('Device usage [user=%s]'%(user_id), fontsize = 30)
     ax.set_ylabel('Date')
     ax.set_yticks(y_label)
 
@@ -372,4 +352,4 @@ def plot_traces(traces_dict, user_id):
 
 
 if __name__ == '__main__':
-    final_algorithm_filtered_traces(True, True, True)
+    final_algorithm_filtered_traces(False, False, False)
