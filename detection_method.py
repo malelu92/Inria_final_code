@@ -1,6 +1,4 @@
 from collections import defaultdict
-from IPython.display import display
-from matplotlib import dates
 
 from model.Base import Base
 from model.User import User
@@ -18,12 +16,8 @@ from blacklist import is_in_blacklist
 from theoretic_counts import get_interval_list, get_free_spikes_traces
 from Traces import Trace
 
-#import datautils
 import datetime
-import errno
-import matplotlib.pyplot as plt
-import os
-import seaborn as sns
+
 
 DB='postgresql+psycopg2:///ucnstudy'
 
@@ -298,7 +292,7 @@ def filter_packet(packet, packets_list, blacklist, f_blacklist, f_seconds, f_spi
 
     return True
 
-def filter_spikes(packets_list, url_domain):
+def filter_spikes(packets_list):
     """
     Eliminates periodic intervals.
     Parameters:
@@ -319,4 +313,4 @@ def filter_spikes(packets_list, url_domain):
 
 
 if __name__ == '__main__':
-    detection_algorithm(True, False, False)
+    detection_algorithm(True, True, True)

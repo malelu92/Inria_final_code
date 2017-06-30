@@ -1,0 +1,22 @@
+#!/usr/bin/python
+from sqlalchemy import Column, ForeignKey, Integer, String, DateTime, Boolean
+from sqlalchemy.orm import relationship
+from sqlalchemy.dialects.postgresql import ARRAY
+from Base import Base
+from user_devices import user_devices
+
+class Device(Base):
+    __tablename__ = 'devices'
+    __table_args__ = {'autoload':True}
+
+def loadDatabaseSession():
+    """"""
+    metadata = Base.metadata
+    Database_session = sessionmaker(bind=engine)
+    return Database_session()
+ 
+ if __name__ == "__main__":
+     database_session = loadDatabaseSession()
+     res = database_session.query(Session).first()
+     print (res.sessionid, res.starttime, res.endtime)
+     database_session.close()
