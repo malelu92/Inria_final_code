@@ -8,7 +8,7 @@ import numpy as np
 import pandas as pd
 import seaborn as sns
 
-from inter_event_time_analysis_activities import get_activities_inter_times
+from absence_periods import get_absence_times
 
 def comparison_evaluation_methods(blist_file, filtered_file, interval_file, not_filtered_file):
     """
@@ -19,7 +19,7 @@ def comparison_evaluation_methods(blist_file, filtered_file, interval_file, not_
     - interval_file(file): contains timestamps followed by True (if user facing) and False otherwise.
     - not_filtered_file(file): contains timestamps followed by True (if user facing) and False otherwise.
     """
-    abs_beg, abs_end = get_activities_inter_times()
+    abs_beg, abs_end = get_absence_times()
     blist_itv_pkts, total_blist = evaluation_method_absence(blist_file, abs_beg, abs_end)
     filt_itv_pkts, total_filt = evaluation_method_absence(filtered_file, abs_beg, abs_end)
     interval_itv_pkts, total_interval = evaluation_method_absence(interval_file, abs_beg, abs_end)

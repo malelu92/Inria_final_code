@@ -1,14 +1,7 @@
-#from bokeh.plotting import figure, show, output_notebook
-#from bokeh.charts import *
 from collections import defaultdict
 from datetime import datetime, timedelta
 from detection_method import get_interval_list_predefined_gap
-#from IPython.display import display
-#from matplotlib import dates
 from model.Base import Base
-#from model.DeviceAppTraffic import DeviceAppTraffic
-#from model.DeviceTraffic import DeviceTraffic
-#from model.Socket import Socket
 from model_io.Activities import Activities;
 from model_io.Base import Base_io
 from model_io.Devices import Devices
@@ -18,15 +11,8 @@ from sqlalchemy import create_engine, text, func
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import NullPool
 
-#import datautils
 import datetime
-#import scipy as sci
-#import matplotlib.pyplot as plt
-#import numpy as np
-#import pandas as pd
-#import seaborn as sns
 
-#output_notebook()
 
 DB='postgresql+psycopg2:///ucnstudy_hostview_data'
 
@@ -46,7 +32,7 @@ Session_ucn = sessionmaker(bind=engine_ucn)
 ses_ucn = Session_ucn()
 
 
-def get_activities_inter_times():
+def get_absence_times():
     """
     """
     mix_beg = defaultdict(list)
@@ -277,8 +263,3 @@ def calculate_block_intervals(act_beg, act_end, io, time_itv):
     mix_beg, mix_end = final_filtering(mix_beg, mix_end)
 
     return mix_beg, mix_end
-
-    
-
-if __name__ == "__main__":
-    get_activities_inter_times()

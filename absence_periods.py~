@@ -1,0 +1,270 @@
+from collections import defaultdict
+from datetime import datetime, timedelta
+from detection_method import get_interval_list_predefined_gap
+from model.Base import Base
+from model_io.Activities import Activities;
+from model_io.Base import Base_io
+from model_io.Devices import Devices
+from Packet import make_packet
+
+from sqlalchemy import create_engine, text, func
+from sqlalchemy.orm import sessionmaker
+from sqlalchemy.pool import NullPool
+
+import datetime
+
+
+DB='postgresql+psycopg2:///ucnstudy_hostview_data'
+
+engine = create_engine(DB, echo=False, poolclass=NullPool)
+Base_io.metadata.bind = engine
+Session = sessionmaker(bind=engine) 
+
+ses = Session()
+devices = ses.query(Devices)
+
+DB_ucn='postgresql+psycopg2:///ucnstudy'
+
+engine_ucn = create_engine(DB_ucn, echo=False, poolclass=NullPool)
+Base.metadata.bind = engine_ucn
+Session_ucn = sessionmaker(bind=engine_ucn)
+
+ses_ucn = Session_ucn()
+
+
+def get_activities_inter_times():
+    """
+    """
+    mix_beg = defaultdict(list)
+    mix_end = defaultdict(list)
+    abs_beg = defaultdict(list)
+    abs_end = defaultdict(list)
+
+    activity_file = open('user_activities_absence_intervals.txt', 'w')
+
+    for device in devices:
+        #select only users from ucnstudy
+        if device.id == 5 or device.id == 6 or device.id == 8 or device.id == 12 or device.id == 14 or device.id == 18 or device.id == 19 or device.id == 21 or device.id == 22:
+
+            sql = """SELECT logged_at, finished_at, name \
+            FROM activities \
+            WHERE session_id = :d_id AND fullscreen = 1"""
+
+            sql_io = """SELECT name, logged_at, lag(logged_at) OVER (ORDER BY logged_at) \
+            FROM io \
+            WHERE session_id = :d_id"""
+
+            ucn_devid = get_ucn_study_devid(device.id)
+
+            beg = []
+            end = []
+            activity_file.write('\n'+ device.device_id)
+            print (device.device_id + '==============')
+            for row in ses.execute(text(sql).bindparams(d_id = device.id)):
+                #is_online = check_online_activity(ucn_devid, row[2], row[0], row[1])
+                #if is_online:
+                beg.append(row[0])
+                end.append(row[1])
+
+            io = []
+            io_iat = []
+            for row in ses.execute(text(sql_io).bindparams(d_id = device.id)):
+                if (row[2]==None):
+                    continue
+                io.append(row[2])
+                io_iat.append((row[1]-row[2]).total_seconds())
+
+            io = get_interval_list_predefined_gap(io, 150)
+   
+
+            mix_beg[device.device_id], mix_end[device.device_id] = calculate_block_intervals(beg, end, io, 1)
+
+            abs_beg[device.device_id], abs_end[device.device_id] = get_absense_intervals(mix_beg[device.device_id], mix_end[device.device_id])
+
+            for i in range(0, len(abs_beg[device.device_id])):
+                beg = abs_beg[device.device_id]
+                end = abs_end[device.device_id]
+                activity_file.write('\n' + str(beg[i]) + ' ' + str(end[i]))
+
+    return abs_beg, abs_end
+
+
+
+def get_absense_intervals(act_beg, act_end):
+    """
+    """
+    first_day = act_beg[0]
+    last_day = act_end[len(act_end)-1]
+    first_day = first_day.replace(hour=00, minute=00, second=00, microsecond=0)
+    last_day = last_day.replace(hour=23, minute=59, second=59, microsecond=0)
+    abs_list_beg = []
+    abs_list_end = []
+
+    current_bucket_beg = first_day
+
+    cont = 0
+    while current_bucket_beg <= last_day + datetime.timedelta(0,1):
+        if cont == len(act_beg):
+            abs_beg = act_end[cont-1]
+            abs_beg += datetime.timedelta(0,1)
+            abs_end = last_day
+            abs_list_beg.append(abs_beg)
+            abs_list_end.append(abs_end)
+            break
+
+        if current_bucket_beg < act_beg[cont]:
+            abs_beg = current_bucket_beg
+            abs_end = act_beg[cont]
+            abs_end -= datetime.timedelta(0,1)
+            abs_list_beg.append(abs_beg)
+            abs_list_end.append(abs_end)
+            current_bucket_beg = act_end[cont]
+            current_bucket_beg += datetime.timedelta(0,1)
+        cont += 1
+
+    return abs_list_beg, abs_list_end
+
+def final_filtering(mix_beg, mix_end):
+    """
+    """
+    mix_beg_final = []
+    mix_end_final = []
+
+    for i in range(0, len(mix_beg)):
+
+        if i > 0:
+            if mix_beg[i] == mix_end[i] and mix_end[i-1] == mix_end[i]:
+                continue
+
+        mix_beg_final.append(mix_beg[i])
+        mix_end_final.append(mix_end[i])
+
+    return mix_beg_final, mix_end_final
+
+
+def get_ucn_study_devid(device_id):
+    """
+    """
+    if device_id == 5:
+        return 28
+    elif device_id == 6:
+        return 18
+    elif device_id == 8:
+        return 39
+    elif device_id == 12:
+        return 23
+    elif device_id == 14:
+        return 22
+    elif device_id == 18:
+        return 21
+    elif device_id == 19:
+        return 45
+    elif device_id == 21:
+        return 46
+    elif device_id == 22:
+        return 42
+
+
+def calculate_block_intervals(act_beg, act_end, io, time_itv):
+    """
+    """
+    mix_beg = []
+    mix_end = []
+    j = 0
+    for i in range (0, len(act_beg)):
+        if j >= len(io):
+            break
+        if act_beg[i] <= io[j]:
+
+            #if done checking io
+            if j == len(io):
+                break
+            block_beg = act_beg[i]
+            block_end = act_end[i]
+            #ignore io points that are already inside act interval
+            while io[j] > block_beg and io[j] < block_end:
+                j = j + 1
+                if j == len(io):
+                    break
+            #merge intervals that are close
+            while (io[j] - block_end).total_seconds() <= time_itv:
+                block_end = io[j]
+                j = j+1
+                if j == len(io):
+                    break
+            mix_beg.append(block_beg)
+            mix_end.append(block_end)
+
+        else:
+            #if done checking io
+            if j == len(io):
+                break
+
+            block_beg = io[j]
+            block_end = io[j]
+            #merge ios
+            while io[j] < act_beg[i]:
+                block_beg = io[j]
+                block_end = io[j]
+                mixed = False
+                if j + 1 < len(io) - 1:
+                    while (io[j+1] - block_end).total_seconds() <= time_itv:
+                        block_end = io[j+1]
+                        j =j+1
+                        #if ios merge with act
+                        if block_end > act_beg[i]:
+                            block_end = act_end[i]
+                            mix_beg.append(block_beg)
+                            mix_end.append(block_end)
+                            mixed = True
+                            break
+                        if j == len(io)-1:
+                            break
+                #block only of ios
+                if not(mixed):
+                    mix_beg.append(block_beg)
+                    mix_end.append(block_end)
+                    j = j + 1
+
+                if j == len(io):
+                    break
+
+
+            if not(mixed):
+                #if ios dont merge with block
+                block_beg = act_beg[i]
+                block_end = act_end[i]
+                #ignore io points that are already inside act interval
+                if j < len(io):
+                    while io[j] > block_beg and io[j] < block_end:
+                        j = j + 1
+                        if j == len(io):
+                            break
+                mix_beg.append(block_beg)
+                mix_end.append(block_end)
+
+    #in case there is still io to check
+    while j < len(io)-1:
+        loop = False
+        block_beg = io[j]
+        block_end = io[j]
+        if j + 1 < len(io): 
+            while (io[j+1] - block_end).total_seconds() <= time_itv:
+                block_end = io[j+1]
+                j = j + 1
+                loop = True
+                if j == len(io)-1:
+                    break
+            if loop == False:
+                j = j + 1
+        mix_beg.append(block_beg)
+        mix_end.append(block_end)        
+
+    mix_beg, mix_end = final_filtering(mix_beg, mix_end)
+
+    return mix_beg, mix_end
+
+    
+
+if __name__ == "__main__":
+    get_activities_inter_times()
